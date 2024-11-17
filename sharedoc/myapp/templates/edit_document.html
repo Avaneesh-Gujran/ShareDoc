@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document Editor</title>
+    <style>
+        /* Document Editor Styling */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            background-color: #f9f9f9;
+        }
+
+        .editor-container {
+            display: flex;
+            flex-direction: column;
+            width: 80%;
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        textarea {
+            width: 100%;
+            height: 80vh;
+            font-size: 16px;
+            line-height: 1.5;
+            padding: 15px;
+            border: none;
+            border-radius: 5px;
+            resize: none;
+            outline: none;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+            font-family: Arial, sans-serif;
+        }
+
+        textarea:focus {
+            border: 1px solid #007bff;
+        }
+
+        .save-button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            align-self: flex-end;
+            margin-top: 15px;
+        }
+
+        .save-button:hover {
+            background-color: #0056b3;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .toolbar button,
+        .toolbar select {
+            padding: 5px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .toolbar select {
+            font-family: Arial, sans-serif;
+        }
+    </style>
+</head>
+<body>
+    <div class="editor-container">
+        <header>
+            <h1>Editing Document {{ document.id }}</h1>
+        </header>
+
+        <!-- Toolbar for styling -->
+        <div class="toolbar">
+            <button onclick="toggleBold()">Bold</button>
+            <button onclick="toggleUnderline()">Underline</button>
+            <select id="font-selector" onchange="changeFont()">
+                <option value="Arial">Arial</option>
+                <option value="Courier New">Courier New</option>
+                <option value="Georgia">Georgia</option>
+                <option value="Times New Roman">Times New Roman</option>
+                <option value="Verdana">Verdana</option>
+            </select>
+        </div>
+
+        <!-- Update the form action to use the save_document URL -->
+        <form action="{% url 'save_document' document.id %}" method="post">
+            {% csrf_token %}
+            <textarea id="editor" name="content" class="editor-textarea" placeholder="Start typing...">{{ document.content }}</textarea>
+            <button id="save-button" type="submit" class="save-button">Save Changes</button>
+        </form>
+    </div>
+
+    <script>
+        const documentId = "{{ document.id }}"; // Document ID passed from Django template
+        let lastContent = ""; // To track the last known content
+
+        // Function to poll the server for updates
+        function pollServer() {
+            fetch(`/poll/document/${documentId}/?last_content=${encodeURIComponent(lastContent)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.content !== lastContent) {
+                        document.getElementById("editor").value = data.content;
+                        lastContent = data.content; // Update last known content
+                    }
+                    pollServer(); // Start the next poll
+                })
+                .catch(error => {
+                    console.error("Polling error:", error);
+                    setTimeout(pollServer, 5000); // Retry after 5 seconds
+                });
+        }
+
+        // Start polling when the page loads
+        pollServer();
+
+        // Function to save document content
+        function saveContent() {
+            const editor = document.getElementById("editor");
+            const content = editor.value;
+
+            fetch(`/save/document/${documentId}/`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded",
+                },
+                body: `content=${encodeURIComponent(content)}`,
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === "success") {
+                        console.log("Document saved successfully.");
+                    } else {
+                        console.error("Error saving document.");
+                    }
+                })
+                .catch(error => console.error("Save error:", error));
+        }
+
+        // Attach event listener to save button
+        document.getElementById("save-button").addEventListener("click", saveContent);
+
+        // Toggle bold text
+        function toggleBold() {
+            const editor = document.getElementById("editor");
+            const start = editor.selectionStart;
+            const end = editor.selectionEnd;
+            const selectedText = editor.value.substring(start, end);
+
+            // Wrap selection with <b></b> if not bolded, else remove it
+            const boldedText = selectedText.startsWith("<b>") && selectedText.endsWith("</b>")
+                ? selectedText.slice(3, -4) // Remove <b></b>
+                : `<b>${selectedText}</b>`; // Add <b></b>
+
+            editor.value = editor.value.substring(0, start) + boldedText + editor.value.substring(end);
+        }
+
+        // Toggle underline text
+        function toggleUnderline() {
+            const editor = document.getElementById("editor");
+            const start = editor.selectionStart;
+            const end = editor.selectionEnd;
+            const selectedText = editor.value.substring(start, end);
+
+            // Wrap selection with <u></u> if not underlined, else remove it
+            const underlinedText = selectedText.startsWith("<u>") && selectedText.endsWith("</u>")
+                ? selectedText.slice(3, -4) // Remove <u></u>
+                : `<u>${selectedText}</u>`; // Add <u></u>
+
+            editor.value = editor.value.substring(0, start) + underlinedText + editor.value.substring(end);
+        }
+
+        // Change font
+        function changeFont() {
+            const font = document.getElementById("font-selector").value;
+            document.getElementById("editor").style.fontFamily = font;
+        }
+    </script>
+</body>
+</html>

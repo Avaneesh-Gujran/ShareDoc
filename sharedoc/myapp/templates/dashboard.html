@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document Dashboard</title>
+    <style>
+        /* Dashboard Styling */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f6f8;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            padding: 20px;
+        }
+
+        /* Button with fixed positioning */
+        .create-button {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            text-decoration: none;
+        }
+
+        .create-button:hover {
+            background-color: #0056b3;
+        }
+
+        .documents-list {
+            margin-top: 60px; /* Space for the fixed button */
+            padding-top: 20px;
+        }
+
+        ul {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        li {
+            background-color: white;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .document-link {
+            color: #007bff;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .document-link:hover {
+            text-decoration: underline;
+        }
+
+        .edit-button {
+            background-color: #007bff;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            text-decoration: none;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .edit-button:hover {
+            background-color: #0056b3;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 10px;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Document Dashboard</h1>
+        </header>
+
+        <!-- Fixed "Create New Document" button -->
+        <a href="{% url 'create_document' %}" class="create-button">+ Create New Document</a>
+
+        <!-- Documents section with infinite scroll -->
+        <main>
+            <section class="documents-list">
+                <h2>Your Documents</h2>
+                <ul id="documents-container">
+                    {% for document in documents %}
+                        <li>
+                            <div class="document-info">
+                                <a href="{% url 'edit_document' document.id %}" class="document-link">
+                                    Document {{ document.id }}
+                                </a>
+                                <span class="created-date">Created on: {{ document.created_at|date:"Y-m-d H:i" }}</span>
+                            </div>
+                            <a href="{% url 'edit_document' document.id %}" class="edit-button">Edit</a>
+                            
+                            
+                        </li>
+                    {% endfor %}
+                </ul>
+                <div class="loading" id="loading" style="display: none;">Loading more documents...</div>
+            
+            
+                <h2>Documents Shared With Me</h2>
+                <ul id="shared-documents-container">
+                    {% for document in shared_documents %}
+                        <li>
+                            <div class="document-info">
+                                <a href="{% url 'edit_document' document.id %}" class="document-link">
+                                    {{ document.title }}
+                                </a>
+                                <span class="shared-by">Shared by: {{ document.owner.email }}</span>
+                            </div>
+                            <a href="{% url 'edit_document' document.id %}" class="edit-button">Edit</a>
+                        </li>
+                    {% endfor %}
+                </ul>
+            </section>
+
+        </main>
+    </div>
+
+    <script>
+        let page = 1; // Track the current page
+        const documentsContainer = document.getElementById('documents-container');
+        const loadingIndicator = document.getElementById('loading');
+
+        // Load more documents when reaching the bottom of the page
+        window.addEventListener('scroll', () => {
+            if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 200) {
+                loadMoreDocuments();
+            }
+        });
+
+        // Fetch more documents via AJAX
+        function loadMoreDocuments() {
+            if (loadingIndicator.style.display === 'none') {
+                loadingIndicator.style.display = 'block';
+                page += 1;
+
+                fetch(`/load_documents?page=${page}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        data.documents.forEach(document => {
+                            const documentItem = document.createElement('li');
+                            documentItem.innerHTML = `
+                                <div class="document-info">
+                                    <a href="/edit/${document.id}/" class="document-link">
+                                        Document ${document.id}
+                                    </a>
+                                    <span class="created-date">Created on: ${document.created_date}</span>
+                                </div>
+                                <a href="/edit/${document.id}/" class="edit-button">Edit</a>
+                            `;
+                            documentsContainer.appendChild(documentItem);
+                        });
+                        loadingIndicator.style.display = 'none';
+
+                        if (data.has_more === false) {
+                            window.removeEventListener('scroll', loadMoreDocuments);
+                        }
+                    });
+            }
+        }
+    </script>
+</body>
+</html>
+

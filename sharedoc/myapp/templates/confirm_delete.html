@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Confirm Delete</title>
+</head>
+<body>
+    <h1>Delete Document</h1>
+    <p>Are you sure you want to delete "{{ document.title }}"?</p>
+    <form action="{% url 'delete_document' document.id %}" method="post">
+        {% csrf_token %}
+        <button type="submit">Yes, delete</button>
+        <a href="{% url 'dashboard' %}">Cancel</a>
+    </form>
+</body>
+</html>
