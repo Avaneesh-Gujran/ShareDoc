@@ -18,13 +18,18 @@ class CustomUser(AbstractUser):
         return self.username
 
 class Document(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    title = models.CharField(max_length=255, default="Untitled Document")
     content = models.TextField(blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     #owner = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='owned_documents',null=True)
     #shared_with = models.ManyToManyField(CustomUser, related_name='shared_documents', blank=True) 
-    
+
+class Cursor(models.Model):
+    document = models.ForeignKey(Document, on_delete=models.CASCADE, related_name='cursors')
+    user_id = models.CharField(max_length=255)  # Unique user identifier
+    cursor_position = models.IntegerField(default=0)
+    last_updated = models.DateTimeField(auto_now=True)
 
 
 
