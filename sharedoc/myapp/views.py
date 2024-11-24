@@ -6,6 +6,12 @@ from .models import Document
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from .models import Document, Cursor
+from django.shortcuts import render, redirect
+from django.contrib.auth import authenticate, login
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from .forms import SignupForm
+from .models import User
 
 def dashboard(request):
     documents = Document.objects.all()
@@ -85,3 +91,39 @@ def update_cursor(request, document_id):
         except Document.DoesNotExist:
             return JsonResponse({'error': 'Document not found'}, status=404)
     return JsonResponse({'error': 'Invalid method'}, status=405)
+
+
+def user_login(request):
+    if request.method == 'POST':
+        email = request.POST['username']
+        password = request.POST['password']
+
+        user = authenticate(request, email=email, password=password)
+        if user is not None:
+            login(request, user)
+            return redirect('dashboard')  # Replace with the desired post-login redirect
+        else:
+            messages.error(request, "Invalid email or password.")
+            return redirect('login')
+
+    return render(request, 'login.html')
+
+def signup(request):
+    if request.method == 'POST':
+        form = SignupForm(request.POST)
+        if form.is_valid():
+            user = User.objects.create_user(
+                email=form.cleaned_data['email'],
+                name=form.cleaned_data['name'],
+                phone_number=form.cleaned_data['phone_number'],
+                password=form.cleaned_data['password']
+            )
+            
+            messages.success(request, "Signup successful! You can now log in.")
+            return redirect('login')
+        else:
+            messages.error(request, "Signup failed. Please correct the errors below.")
+    else:
+        form = SignupForm()
+
+    return render(request, 'signup.html', {'form': form})
